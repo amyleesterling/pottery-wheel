@@ -315,14 +315,28 @@ function resize() {
   grainsMat.uniforms.uDpr.value = dpr();
   moteMat.uniforms.uDpr.value = dpr();
 }
-// Reframe only when the layout actually crosses the phone breakpoint, so a
-// resize never throws away a zoom the user set.
+// How far back the piece has to sit to fit the frame it actually has. A
+// portrait phone is limited by width, a desktop window by height, and the
+// console covers part of the bottom either way.
+function fitDistance() {
+  const halfV = Math.tan((camera.fov * Math.PI / 180) / 2);
+  const deck = document.getElementById('console');
+  const covered = deck ? deck.getBoundingClientRect().height * 0.7 : 0;
+  const usable = Math.min(Math.max(1 - covered / window.innerHeight, 0.35), 0.9);
+
+  const byHeight = (S.height * 0.62) / (halfV * usable);
+  const byWidth = (Math.max(maxRadius(S.profile), 0.05) * 1.15) / (halfV * camera.aspect);
+  return Math.min(Math.max(Math.max(byHeight, byWidth) * 1.4, 0.8), 3.2);
+}
+
+// Reframe on load and when the layout crosses the phone breakpoint. Not on
+// every resize, so a zoom the user set is never thrown away.
 let wasNarrow = null;
 function frameForViewport() {
   const n = narrow();
   if (n === wasNarrow) return;
   wasNarrow = n;
-  S.distT = n ? 1.78 : 1.42;
+  S.distT = fitDistance();
   if (!S.framed) { S.dist = S.distT; S.framed = true; }
 }
 addEventListener('resize', () => { resize(); frameForViewport(); });
