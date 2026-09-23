@@ -1,0 +1,345 @@
+<title>Throwing Light</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cardo:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap">
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+  :root {
+    --ground: #06070a;
+    --ink: #eceae4;
+    --ink-dim: #8e8d88;
+    --ink-faint: #53555c;
+    --line: rgba(236, 234, 228, 0.13);
+    --line-strong: rgba(236, 234, 228, 0.30);
+    --veil: rgba(6, 7, 10, 0.55);
+    --hot: #ff6a2c;
+    --accent: #8aa3ff;
+    --serif: 'Cardo', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+
+  [hidden] { display: none !important; }
+
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--mono);
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #stage {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    cursor: crosshair;
+  }
+
+  /* keeps the chrome legible against the beam */
+  #vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(130% 95% at 50% 58%, transparent 34%, rgba(6,7,10,0.55) 78%, rgba(6,7,10,0.9) 100%);
+  }
+
+  /* --- masthead --- */
+  #brand {
+    position: fixed;
+    top: env(safe-area-inset-top, 0px);
+    left: 0;
+    padding: 18px 16px 0 20px;
+    pointer-events: none;
+  }
+  #brand h1 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 27px;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+  #brand p {
+    margin: 7px 0 0;
+    font-size: 9.5px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    max-width: 44ch;
+    line-height: 1.6;
+  }
+
+  /* --- instrument readout --- */
+  #readout {
+    position: fixed;
+    top: env(safe-area-inset-top, 0px);
+    right: 0;
+    padding: 18px 20px 0 16px;
+    display: grid;
+    gap: 9px;
+    justify-items: end;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .row { display: flex; align-items: baseline; gap: 9px; }
+  .row dt {
+    font-size: 9px;
+    letter-spacing: 0.17em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .row dd {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 300;
+    min-width: 5.2ch;
+    text-align: right;
+  }
+  .row dd .u {
+    font-size: 9.5px;
+    color: var(--ink-faint);
+    margin-left: 2px;
+    text-transform: none;
+  }
+  #r-kiln.hot { color: var(--hot); }
+  #r-cone, #r-match-sub {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  #match-row dd { color: var(--accent); }
+
+  /* --- hint --- */
+  #hint {
+    margin: 16px 0 0;
+    padding-top: 13px;
+    border-top: 1px solid var(--line);
+    max-width: 30ch;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    line-height: 2.1;
+    transition: opacity 0.7s ease;
+  }
+
+  /* --- console --- */
+  #console {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 20px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    background: linear-gradient(to top, rgba(6,7,10,0.96) 30%, rgba(6,7,10,0.62) 72%, transparent);
+  }
+
+  .strip {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 1px;
+  }
+  .strip::-webkit-scrollbar { display: none; }
+
+  #deck {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 9px 14px;
+  }
+  .group {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .group > .tag {
+    font-size: 8.5px;
+    letter-spacing: 0.19em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-right: 2px;
+  }
+  .sep {
+    width: 1px;
+    align-self: stretch;
+    background: var(--line);
+    margin: 0 2px;
+  }
+
+  .chip {
+    flex: none;
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    color: var(--ink-dim);
+    font: inherit;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    padding: 7px 11px;
+    cursor: pointer;
+    transition: color 0.18s, border-color 0.18s, box-shadow 0.18s;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--line-strong); }
+  .chip.on {
+    color: var(--ink);
+    border-color: var(--line-strong);
+    box-shadow: inset 0 2px 0 -1px var(--accent);
+  }
+  .chip:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+  .chip[disabled] { opacity: 0.35; cursor: default; }
+
+  #fire {
+    border-color: rgba(255, 106, 44, 0.45);
+    color: var(--hot);
+    letter-spacing: 0.22em;
+  }
+  #fire:hover:not([disabled]) {
+    border-color: var(--hot);
+    box-shadow: 0 0 22px -6px var(--hot);
+  }
+
+  .dial { display: flex; align-items: center; gap: 8px; }
+  .dial label {
+    font-size: 8.5px;
+    letter-spacing: 0.19em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .dial output {
+    font-size: 9.5px;
+    color: var(--ink-dim);
+    min-width: 4ch;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type=range] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 86px;
+    height: 16px;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 1px; background: var(--line-strong);
+  }
+  input[type=range]::-moz-range-track { height: 1px; background: var(--line-strong); }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 9px; height: 9px; margin-top: -4px;
+    border-radius: 50%; background: var(--accent); border: none;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 9px; height: 9px; border: none; border-radius: 50%; background: var(--accent);
+  }
+  input[type=range]:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+
+  #form-note {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 720px) {
+    #brand h1 { font-size: 21px; }
+    #brand > p:first-of-type { display: none; }
+    #hint { margin-top: 12px; padding-top: 10px; }
+    #readout { gap: 6px; padding-top: 14px; }
+    .row dd { font-size: 12.5px; }
+    #hint { transform: translate(-50%, 96px); font-size: 9px; padding: 0 20px; }
+    input[type=range] { width: 62px; }
+  }
+  @media (max-width: 420px) {
+    #readout .u, #r-cone { display: none; }
+  }
+</style>
+
+<canvas id="stage"></canvas>
+<div id="vignette" aria-hidden="true"></div>
+
+<header id="brand">
+  <h1>Throwing Light</h1>
+  <p>After 3D Pottery, Google Arts &amp; Culture Lab</p>
+  <p id="hint">
+    Drag across the clay to throw it<br>
+    Shift drag, two fingers or Orbit<br>
+    to walk around the wheel
+  </p>
+</header>
+
+<dl id="readout">
+  <div class="row"><dt>Height</dt><dd><span id="r-height">0</span><span class="u">cm</span></dd></div>
+  <div class="row"><dt>Widest</dt><dd><span id="r-width">0</span><span class="u">cm</span></dd></div>
+  <div class="row"><dt>Wheel</dt><dd><span id="r-rpm">0</span><span class="u">rpm</span></dd></div>
+  <div class="row"><dt>Kiln</dt><dd><span id="r-kiln">cold</span><span class="u">&deg;C</span></dd></div>
+  <div class="row"><dd id="r-cone">greenware</dd></div>
+  <div class="row" id="match-row" hidden><dt>Match</dt><dd id="r-match">0%</dd></div>
+  <div class="row"><dd id="r-match-sub"></dd></div>
+</dl>
+
+<footer id="console">
+  <div class="strip" id="forms"></div>
+  <div id="form-note">No reference. The wheel is yours.</div>
+
+  <div id="deck">
+    <div class="group" id="tools"></div>
+
+    <div class="sep"></div>
+
+    <div class="dial">
+      <label for="brush">Touch</label>
+      <input id="brush" type="range" min="15" max="240" value="85">
+      <output id="brush-val">17%</output>
+    </div>
+    <div class="dial">
+      <label for="rpm">Wheel</label>
+      <input id="rpm" type="range" min="0" max="110" value="42">
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="group"><span class="tag">Light</span><span class="group" id="worlds"></span></div>
+
+    <div class="sep"></div>
+
+    <div class="group"><span class="tag">Show</span><span class="group" id="layers"></span></div>
+
+    <div class="sep"></div>
+
+    <div class="group">
+      <button class="chip" id="orbit" type="button" aria-pressed="false">Orbit</button>
+      <button class="chip" id="fire" type="button">Fire</button>
+      <button class="chip" id="reset" type="button">Recentre</button>
+    </div>
+  </div>
+</footer>
+
+<script type="module" src="./src/app.js"></script>
