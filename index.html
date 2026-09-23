@@ -164,6 +164,10 @@
     padding-bottom: 1px;
   }
   .strip::-webkit-scrollbar { display: none; }
+  .strip {
+    -webkit-mask-image: linear-gradient(to right, #000 90%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 90%, transparent 100%);
+  }
 
   #deck {
     display: flex;
@@ -269,13 +273,21 @@
   }
 
   @media (max-width: 720px) {
+    #brand { padding: 14px 14px 0 16px; }
     #brand h1 { font-size: 21px; }
     #brand > p:first-of-type { display: none; }
-    #hint { margin-top: 12px; padding-top: 10px; }
-    #readout { gap: 6px; padding-top: 14px; }
+    #hint { margin-top: 11px; padding-top: 9px; font-size: 8.5px; max-width: 24ch; }
+    #readout { gap: 6px; padding-top: 12px; }
     .row dd { font-size: 12.5px; }
-    #hint { transform: translate(-50%, 96px); font-size: 9px; padding: 0 20px; }
-    input[type=range] { width: 62px; }
+
+    /* the console has to give the wheel back some room */
+    #console { gap: 8px; padding: 16px 12px calc(10px + env(safe-area-inset-bottom, 0px)); }
+    #deck { gap: 7px 10px; }
+    .sep { display: none; }
+    .chip { font-size: 9px; padding: 6px 9px; letter-spacing: 0.1em; }
+    .group > .tag, .dial label { font-size: 8px; letter-spacing: 0.14em; }
+    #form-note { font-size: 8px; }
+    input[type=range] { width: 58px; }
   }
   @media (max-width: 420px) {
     #readout .u, #r-cone { display: none; }

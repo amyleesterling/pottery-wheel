@@ -53,6 +53,7 @@ const S = {
   spin: 0,
   az: 0.42, el: 0.16, dist: 1.42,
   azT: 0.42, elT: 0.16, distT: 1.42,
+  framed: false,
 };
 
 function startingForm() {
@@ -108,6 +109,8 @@ function uploadProfile() {
 uploadProfile();
 
 const dpr = () => Math.min(window.devicePixelRatio || 1, 1.75);
+const narrow = () => window.innerWidth < 720;
+const aimY = () => S.height * (narrow() ? 0.30 : 0.52);
 
 // --- the clay, as grains of light ----------------------------------------
 
@@ -312,8 +315,19 @@ function resize() {
   grainsMat.uniforms.uDpr.value = dpr();
   moteMat.uniforms.uDpr.value = dpr();
 }
-addEventListener('resize', resize);
+// Reframe only when the layout actually crosses the phone breakpoint, so a
+// resize never throws away a zoom the user set.
+let wasNarrow = null;
+function frameForViewport() {
+  const n = narrow();
+  if (n === wasNarrow) return;
+  wasNarrow = n;
+  S.distT = n ? 1.78 : 1.42;
+  if (!S.framed) { S.dist = S.distT; S.framed = true; }
+}
+addEventListener('resize', () => { resize(); frameForViewport(); });
 resize();
+frameForViewport();
 
 // --- sculpting ------------------------------------------------------------
 
@@ -612,7 +626,7 @@ function frame() {
     S.height * 0.52 + Math.sin(el) * di,
     Math.cos(az) * Math.cos(el) * di,
   );
-  camTarget.y += (S.height * 0.52 - camTarget.y) * 0.08;
+  camTarget.y += (aimY() - camTarget.y) * 0.08;
   camera.lookAt(camTarget);
 
   // uniforms
